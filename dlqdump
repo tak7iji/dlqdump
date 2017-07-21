@@ -1,0 +1,26 @@
+#!/usr/bin/env /usr/share/logstash/bin/ruby
+
+require_relative "../lib/bootstrap/environment"
+LogStash::Bundler.setup!({:without => [:build, :development]})
+require "yaml"
+require "logstash-core"
+require "logstash/environment"
+require "logstash/settings"
+
+path_dlq = LogStash::SETTINGS.from_yaml(ARGV[0]).get_value("path.dead_letter_queue")
+path = Java::JavaNioFile::Paths.get(path_dlq+"/"+ARGV[1])
+dlq = Java::OrgLogstashCommonIo::DeadLetterQueueReader.new(path)
+
+while true do
+   entry = dlq.pollEntry(100)
+   if entry.nil? then
+     break
+   end
+   puts "Entry time : #{entry.getEntryTime}"
+   puts "Event      : #{entry.getEvent}"
+   puts "Plugin Type: #{entry.getPluginType}"
+   puts "Plugin Id  : #{entry.getPluginId}"
+   puts "Reason     : #{entry.getReason}"
+   puts ""
+end
+dlq.close
